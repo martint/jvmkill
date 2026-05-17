@@ -3,29 +3,41 @@ ifndef JAVA_HOME
 endif
 
 ifeq ($(shell uname),Darwin)
-INCLUDE= -I"$(JAVA_HOME)/include" -I"$(JAVA_HOME)/include/darwin"
+    JNI_MD ?= darwin
 else
-INCLUDE= -I"$(JAVA_HOME)/include" -I"$(JAVA_HOME)/include/linux"
+    JNI_MD ?= linux
 endif
-CFLAGS=-Wall -Werror -fPIC -shared $(INCLUDE)
 
-TARGET=libjvmkill.so
+CC     ?= gcc
+LINK   ?= -shared
+OUTPUT ?= libjvmkill.so
 
-.PHONY: all clean test
+CFLAGS = -Wall -Werror -fPIC \
+    -I"$(JAVA_HOME)/include" \
+    -I"$(JAVA_HOME)/include/$(JNI_MD)" \
+    $(LINK)
 
-all:
-	gcc $(CFLAGS) -o $(TARGET) jvmkill.c
-	chmod 644 $(TARGET)
+.PHONY: all clean test release
+
+all: $(OUTPUT)
+
+$(OUTPUT): jvmkill.c
+	$(CC) $(CFLAGS) -o $(OUTPUT) jvmkill.c
 
 clean:
-	rm -f $(TARGET)
-	rm -f *.class
-	rm -f *.hprof
+	rm -f *.so *.dylib *.class *.hprof
+	rm -rf dist
 
 test: all
 	$(JAVA_HOME)/bin/javac JvmKillTest.java
-	$(JAVA_HOME)/bin/java -Xmx8m \
+	@output=$$($(JAVA_HOME)/bin/java -Xmx8m \
 	    -XX:+HeapDumpOnOutOfMemoryError \
-	    -XX:OnOutOfMemoryError='/bin/echo hello' \
-	    -agentpath:$(PWD)/$(TARGET) \
-	    -cp $(PWD) JvmKillTest
+	    -agentpath:$(PWD)/$(OUTPUT) \
+	    -cp $(PWD) JvmKillTest 2>&1 || true); \
+	echo "$$output"; \
+	echo "$$output" | grep -q 'ResourceExhausted:.*killing current process' || { \
+	    echo 'ERROR: jvmkill agent did not fire on OOM' >&2; exit 1; \
+	}
+
+release:
+	./scripts/release.sh
