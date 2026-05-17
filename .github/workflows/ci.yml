@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # jvmti.h is read at compile time from the JDK that
+      # scripts/release.sh bind-mounts into the rustxc container.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Cross-compile and stage artifacts
+        run: ./scripts/release.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jvmkill-binaries
+          path: dist/
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Build and test agent
+        run: make test
