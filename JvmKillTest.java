@@ -19,7 +19,11 @@ public final class JvmKillTest
         System.out.println("triggering thread exhaustion...");
         int count = 0;
         while (true) {
-            Thread thread = new Thread(() -> {});
+            Thread thread = new Thread(() -> {
+                try { Thread.sleep(Long.MAX_VALUE); }
+                catch (InterruptedException e) {}
+            });
+            thread.setDaemon(true);
             thread.start();
             count++;
             System.out.println("threads: " + count);
