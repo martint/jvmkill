@@ -30,13 +30,12 @@ clean:
 
 test: all
 	$(JAVA_HOME)/bin/javac JvmKillTest.java
-	@output=$$($(JAVA_HOME)/bin/java -Xmx8m \
-	    -XX:+HeapDumpOnOutOfMemoryError \
+	@output=$$($(JAVA_HOME)/bin/java -Xss512m \
 	    -agentpath:$(PWD)/$(OUTPUT) \
 	    -cp $(PWD) JvmKillTest 2>&1 || true); \
 	echo "$$output"; \
 	echo "$$output" | grep -q 'ResourceExhausted:.*killing current process' || { \
-	    echo 'ERROR: jvmkill agent did not fire on OOM' >&2; exit 1; \
+	    echo 'ERROR: jvmkill agent did not fire on thread exhaustion' >&2; exit 1; \
 	}
 
 release:
